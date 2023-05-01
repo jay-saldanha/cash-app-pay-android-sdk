@@ -1,13 +1,13 @@
 # 2.1.0
 
-This version introduces a concrete type for `GrantType` under the `Grant` class. Before this field was a `string`. 
+This version introduces a `concrete` type for `GrantType` under the `Grant` class. Before this field was a `string`. 
 This is a breaking change. The following has changed:
 
-- `Grant.type` from `string` to `GrantType` <br/>
-- Possible `GrantType` values: `ONE_TIME`, `EXTENDED`, `UNKNOWN`. These values match their spelling with what is described by our public API.
-- For convenience, `ONE_TIME` applies to a grant can only be used once, where `EXTENDED` applies to grants that can be repeatedly used.
-- `CashAppPayPaymentAction` no longer contains the `redirectUri` parameter. Instead, pass that value to the `createCustomerRequest` function.
-- Fixes to the behavior of `startWithExistingCustomerRequest`
+- `Grant.type` from `string` to `concrete` <br/>
+- Possible `GrantType` values: `ONE_TIME`, `EXTENDED`, `UNKNOWN`. **Note:** These values have the same spelling and case in our public API.
+- For convenience, `ONE_TIME` applies to a grant that can only be used once, whereas `EXTENDED` applies to grants that can be used multiple times.
+- `CashAppPayPaymentAction` does not contain the `redirectUri` parameter. Instead, you must pass that value to the `createCustomerRequest` function.
+- Fixed the behavior of `startWithExistingCustomerRequest`
 
 
 # 2.0.0
