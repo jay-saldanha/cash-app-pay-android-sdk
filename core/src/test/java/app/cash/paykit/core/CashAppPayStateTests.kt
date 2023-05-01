@@ -32,6 +32,9 @@ import app.cash.paykit.core.impl.CashAppPayLifecycleListener
 import app.cash.paykit.core.models.common.NetworkResult
 import app.cash.paykit.core.models.response.CustomerResponseData
 import app.cash.paykit.core.models.response.CustomerTopLevelResponse
+import app.cash.paykit.core.models.response.STATUS_APPROVED
+import app.cash.paykit.core.models.response.STATUS_PENDING
+import app.cash.paykit.core.models.response.STATUS_PROCESSING
 import com.google.common.truth.Truth.assertThat
 import io.mockk.MockKAnnotations
 import io.mockk.every
@@ -72,11 +75,11 @@ class CashAppPayStateTests {
     val listener = mockk<CashAppPayListener>(relaxed = true)
     payKit.registerForStateUpdates(listener)
 
-    every { networkManager.createCustomerRequest(any(), any()) } returns NetworkResult.failure(
+    every { networkManager.createCustomerRequest(any(), any(), any()) } returns NetworkResult.failure(
       Exception("bad"),
     )
 
-    payKit.createCustomerRequest(FakeData.oneTimePayment)
+    payKit.createCustomerRequest(FakeData.oneTimePayment, FakeData.REDIRECT_URI)
     verify { listener.cashAppPayStateDidChange(CreatingCustomerRequest) }
   }
 
@@ -109,6 +112,60 @@ class CashAppPayStateTests {
   }
 
   @Test
+  fun `startWithExistingCustomerRequest fetches existing Approved request`() {
+    val payKit = createPayKit()
+    val listener = mockk<CashAppPayListener>(relaxed = true)
+    payKit.registerForStateUpdates(listener)
+    val customerTopLevelResponse: NetworkResult.Success<CustomerTopLevelResponse> = mockk()
+    every { customerTopLevelResponse.data.customerResponseData.status } returns STATUS_APPROVED
+    every {
+      networkManager.retrieveUpdatedRequestData(
+        any(),
+        any(),
+      )
+    } returns customerTopLevelResponse
+
+    payKit.startWithExistingCustomerRequest(FakeData.REQUEST_ID)
+    verify { listener.cashAppPayStateDidChange(ofType(Approved::class)) }
+  }
+
+  @Test
+  fun `startWithExistingCustomerRequest fetches existing Processing request`() {
+    val payKit = createPayKit()
+    val listener = mockk<CashAppPayListener>(relaxed = true)
+    payKit.registerForStateUpdates(listener)
+    val customerTopLevelResponse: NetworkResult.Success<CustomerTopLevelResponse> = mockk()
+    every { customerTopLevelResponse.data.customerResponseData.status } returns STATUS_PROCESSING
+    every {
+      networkManager.retrieveUpdatedRequestData(
+        any(),
+        any(),
+      )
+    } returns customerTopLevelResponse
+
+    payKit.startWithExistingCustomerRequest(FakeData.REQUEST_ID)
+    verify { listener.cashAppPayStateDidChange(ofType(PollingTransactionStatus::class)) }
+  }
+
+  @Test
+  fun `startWithExistingCustomerRequest fetches existing Pending request`() {
+    val payKit = createPayKit()
+    val listener = mockk<CashAppPayListener>(relaxed = true)
+    payKit.registerForStateUpdates(listener)
+    val customerTopLevelResponse: NetworkResult.Success<CustomerTopLevelResponse> = mockk()
+    every { customerTopLevelResponse.data.customerResponseData.status } returns STATUS_PENDING
+    every {
+      networkManager.retrieveUpdatedRequestData(
+        any(),
+        any(),
+      )
+    } returns customerTopLevelResponse
+
+    payKit.startWithExistingCustomerRequest(FakeData.REQUEST_ID)
+    verify { listener.cashAppPayStateDidChange(ofType(ReadyToAuthorize::class)) }
+  }
+
+  @Test
   fun `ReadyToAuthorize State`() {
     val payKit = createPayKit()
     val listener = mockk<CashAppPayListener>(relaxed = true)
@@ -120,10 +177,11 @@ class CashAppPayStateTests {
       networkManager.createCustomerRequest(
         any(),
         any(),
+        any(),
       )
     } returns customerTopLevelResponse
 
-    payKit.createCustomerRequest(FakeData.oneTimePayment)
+    payKit.createCustomerRequest(FakeData.oneTimePayment, FakeData.REDIRECT_URI)
     verify { listener.cashAppPayStateDidChange(ofType(ReadyToAuthorize::class)) }
   }
 
@@ -245,10 +303,6 @@ class CashAppPayStateTests {
 
     fun simulateOnApplicationForegrounded() {
       listener?.onApplicationForegrounded()
-    }
-
-    fun simulateOnApplicationBackgrounded() {
-      listener?.onApplicationBackgrounded()
     }
 
     override fun register(newInstance: CashAppPayLifecycleListener) {
